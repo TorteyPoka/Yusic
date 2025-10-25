@@ -1,0 +1,13 @@
+Artist:
+
+
+
+Studio:
+
+
+
+
+App Features:
+
+Newsfeed:
+Feed style will be like Facebook. Artist info should be included. 
