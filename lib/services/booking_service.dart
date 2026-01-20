@@ -67,12 +67,22 @@ class BookingService {
 
   Future<List<BookingModel>> getStudioBookings(String studioId) async {
     await Future.delayed(const Duration(milliseconds: 500));
-    return _mockBookings.where((b) => b.studioId == studioId).toList();
+
+    // For demo purposes, return all bookings regardless of studioId
+    // Update the mock bookings to use the current studioId
+    return _mockBookings.map((booking) {
+      return booking.copyWith(studioId: studioId);
+    }).toList();
   }
 
   Future<List<BookingModel>> getArtistBookings(String artistId) async {
     await Future.delayed(const Duration(milliseconds: 500));
-    return _mockBookings.where((b) => b.artistId == artistId).toList();
+
+    // For demo purposes, return all bookings regardless of artistId
+    // Update the mock bookings to use the current artistId
+    return _mockBookings.map((booking) {
+      return booking.copyWith(artistId: artistId);
+    }).toList();
   }
 
   Future<void> createBooking(BookingModel booking) async {

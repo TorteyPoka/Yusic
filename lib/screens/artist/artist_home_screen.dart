@@ -4,6 +4,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/folder_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../models/folder_model.dart';
+import '../../models/track_model.dart';
 import 'package:uuid/uuid.dart';
 
 class ArtistHomeScreen extends StatefulWidget {
@@ -170,6 +171,7 @@ class _NewsfeedTab extends StatelessWidget {
             return Card(
               margin: const EdgeInsets.only(bottom: 16),
               child: ListTile(
+                onTap: () => _navigateToFolderDetails(context, folder),
                 leading: Container(
                   width: 50,
                   height: 50,
@@ -183,13 +185,22 @@ class _NewsfeedTab extends StatelessWidget {
                 subtitle: Text('${folder.trackCount} tracks'),
                 trailing: IconButton(
                   icon: const Icon(Icons.play_arrow),
-                  onPressed: () {},
+                  onPressed: () => _navigateToFolderDetails(context, folder),
                 ),
               ),
             );
           },
         );
       },
+    );
+  }
+
+  void _navigateToFolderDetails(BuildContext context, FolderModel folder) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => _FolderDetailsScreen(folder: folder),
+      ),
     );
   }
 }
@@ -231,6 +242,7 @@ class _MyFoldersTab extends StatelessWidget {
             return Card(
               margin: const EdgeInsets.only(bottom: 16),
               child: ListTile(
+                onTap: () => _navigateToFolderDetails(context, folder),
                 leading: Container(
                   width: 50,
                   height: 50,
@@ -280,6 +292,15 @@ class _MyFoldersTab extends StatelessWidget {
           },
         );
       },
+    );
+  }
+
+  void _navigateToFolderDetails(BuildContext context, FolderModel folder) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => _FolderDetailsScreen(folder: folder),
+      ),
     );
   }
 }
@@ -367,6 +388,199 @@ class _ProfileTab extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+// Folder Details Screen
+class _FolderDetailsScreen extends StatefulWidget {
+  final FolderModel folder;
+
+  const _FolderDetailsScreen({required this.folder});
+
+  @override
+  State<_FolderDetailsScreen> createState() => _FolderDetailsScreenState();
+}
+
+class _FolderDetailsScreenState extends State<_FolderDetailsScreen> {
+  final List<TrackModel> _tracks = [];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.folder.name),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: () {},
+          ),
+        ],
+      ),
+      body: _tracks.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.music_note, size: 80, color: AppTheme.textHint),
+                  const SizedBox(height: 16),
+                  const Text('No tracks in this folder'),
+                  const SizedBox(height: 8),
+                  ElevatedButton.icon(
+                    onPressed: () => _showAddTrackDialog(context),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add Your First Track'),
+                  ),
+                ],
+              ),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: _tracks.length,
+              itemBuilder: (context, index) {
+                final track = _tracks[index];
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: ListTile(
+                    leading: Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        gradient: AppTheme.primaryGradient,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.music_note, color: Colors.white),
+                    ),
+                    title: Text(track.title),
+                    subtitle: Text(track.artist ?? 'Unknown Artist'),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('${track.duration ~/ 60}:${(track.duration % 60).toString().padLeft(2, '0')}'),
+                        IconButton(
+                          icon: const Icon(Icons.play_arrow),
+                          onPressed: () {},
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showAddTrackDialog(context),
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  void _showAddTrackDialog(BuildContext context) {
+    final titleController = TextEditingController();
+    final artistController = TextEditingController();
+    final durationController = TextEditingController(text: '180');
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Track'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleController,
+                decoration: const InputDecoration(
+                  labelText: 'Track Title',
+                  hintText: 'Enter track title',
+                  prefixIcon: Icon(Icons.music_note),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: artistController,
+                decoration: const InputDecoration(
+                  labelText: 'Artist Name',
+                  hintText: 'Enter artist name',
+                  prefixIcon: Icon(Icons.person),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: durationController,
+                decoration: const InputDecoration(
+                  labelText: 'Duration (seconds)',
+                  hintText: 'Enter duration in seconds',
+                  prefixIcon: Icon(Icons.timer),
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: () {
+                  // In a real app, this would open file picker
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('File picker would open here'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.upload_file),
+                label: const Text('Choose Audio File'),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () {
+                  // In a real app, this would open image picker
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Image picker would open here'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.image),
+                label: const Text('Choose Cover Image (Optional)'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (titleController.text.isNotEmpty) {
+                final track = TrackModel(
+                  id: const Uuid().v4(),
+                  folderId: widget.folder.id,
+                  artistId: widget.folder.artistId,
+                  title: titleController.text,
+                  artist: artistController.text.isEmpty ? null : artistController.text,
+                  audioUrl: 'https://example.com/track.mp3', // Placeholder
+                  duration: int.tryParse(durationController.text) ?? 180,
+                  createdAt: DateTime.now(),
+                );
+
+                setState(() {
+                  _tracks.add(track);
+                });
+
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Track added successfully!'),
+                    backgroundColor: AppTheme.successColor,
+                  ),
+                );
+              }
+            },
+            child: const Text('Add Track'),
+          ),
+        ],
+      ),
     );
   }
 }

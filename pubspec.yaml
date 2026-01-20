@@ -10,7 +10,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  
+  supabase_flutter: ^2.12.0
   # UI Components
   cupertino_icons: ^1.0.8
   google_fonts: ^6.2.1

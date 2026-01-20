@@ -82,72 +82,92 @@ class _CalendarTabState extends State<_CalendarTab> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
 
+  void _showBookingDialog(BuildContext context, DateTime date, String timeSlot,
+      SessionType sessionType) {
+    showDialog(
+      context: context,
+      builder: (context) => _BookingDialog(
+        date: date,
+        timeSlot: timeSlot,
+        sessionType: sessionType,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Card(
-          margin: const EdgeInsets.all(16),
-          child: TableCalendar(
-            firstDay: DateTime.now().subtract(const Duration(days: 30)),
-            lastDay: DateTime.now().add(const Duration(days: 365)),
-            focusedDay: _focusedDay,
-            selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-            onDaySelected: (selectedDay, focusedDay) {
-              setState(() {
-                _selectedDay = selectedDay;
-                _focusedDay = focusedDay;
-              });
-            },
-            calendarStyle: CalendarStyle(
-              todayDecoration: BoxDecoration(
-                color: AppTheme.primaryColor.withOpacity(0.5),
-                shape: BoxShape.circle,
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          Card(
+            margin: const EdgeInsets.all(16),
+            child: TableCalendar(
+              firstDay: DateTime.now().subtract(const Duration(days: 30)),
+              lastDay: DateTime.now().add(const Duration(days: 365)),
+              focusedDay: _focusedDay,
+              selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+              onDaySelected: (selectedDay, focusedDay) {
+                setState(() {
+                  _selectedDay = selectedDay;
+                  _focusedDay = focusedDay;
+                });
+              },
+              calendarStyle: CalendarStyle(
+                todayDecoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withOpacity(0.5),
+                  shape: BoxShape.circle,
+                ),
+                selectedDecoration: const BoxDecoration(
+                  color: AppTheme.primaryColor,
+                  shape: BoxShape.circle,
+                ),
               ),
-              selectedDecoration: const BoxDecoration(
-                color: AppTheme.primaryColor,
-                shape: BoxShape.circle,
+              headerStyle: const HeaderStyle(
+                formatButtonVisible: false,
+                titleCentered: true,
               ),
-            ),
-            headerStyle: const HeaderStyle(
-              formatButtonVisible: false,
-              titleCentered: true,
             ),
           ),
-        ),
-        if (_selectedDay != null)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Schedule for ${DateFormat('MMMM dd, yyyy').format(_selectedDay!)}',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 16),
-                _TimeSlot(
-                  time: '9:00 AM - 12:00 PM',
-                  sessionType: SessionType.recording,
-                  status: 'Available',
-                  color: AppTheme.successColor,
-                ),
-                _TimeSlot(
-                  time: '2:00 PM - 5:00 PM',
-                  sessionType: SessionType.jamming,
-                  status: 'Booked',
-                  color: AppTheme.recordingColor,
-                ),
-                _TimeSlot(
-                  time: '6:00 PM - 9:00 PM',
-                  sessionType: SessionType.recording,
-                  status: 'Blocked',
-                  color: AppTheme.textHint,
-                ),
-              ],
+          if (_selectedDay != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Schedule for ${DateFormat('MMMM dd, yyyy').format(_selectedDay!)}',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  _TimeSlot(
+                    time: '9:00 AM - 12:00 PM',
+                    sessionType: SessionType.recording,
+                    status: 'Available',
+                    color: AppTheme.successColor,
+                    selectedDate: _selectedDay!,
+                    onTap: () => _showBookingDialog(context, _selectedDay!,
+                        '9:00 AM - 12:00 PM', SessionType.recording),
+                  ),
+                  _TimeSlot(
+                    time: '2:00 PM - 5:00 PM',
+                    sessionType: SessionType.jamming,
+                    status: 'Booked',
+                    color: AppTheme.recordingColor,
+                    selectedDate: _selectedDay!,
+                  ),
+                  _TimeSlot(
+                    time: '6:00 PM - 9:00 PM',
+                    sessionType: SessionType.recording,
+                    status: 'Blocked',
+                    color: AppTheme.textHint,
+                    selectedDate: _selectedDay!,
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -157,19 +177,27 @@ class _TimeSlot extends StatelessWidget {
   final SessionType sessionType;
   final String status;
   final Color color;
+  final DateTime selectedDate;
+  final VoidCallback? onTap;
 
   const _TimeSlot({
     required this.time,
     required this.sessionType,
     required this.status,
     required this.color,
+    required this.selectedDate,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final bool isAvailable = status == 'Available';
+
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
+        enabled: isAvailable,
+        onTap: isAvailable ? onTap : null,
         leading: Container(
           width: 4,
           height: 40,
@@ -182,12 +210,21 @@ class _TimeSlot extends StatelessWidget {
         subtitle: Text(
           '${sessionType == SessionType.recording ? 'Recording' : 'Jamming'} Session',
         ),
-        trailing: Chip(
-          label: Text(
-            status,
-            style: const TextStyle(fontSize: 12),
-          ),
-          backgroundColor: color.withOpacity(0.2),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Chip(
+              label: Text(
+                status,
+                style: const TextStyle(fontSize: 12),
+              ),
+              backgroundColor: color.withOpacity(0.2),
+            ),
+            if (isAvailable) ...[
+              const SizedBox(width: 8),
+              const Icon(Icons.arrow_forward_ios, size: 16),
+            ],
+          ],
         ),
       ),
     );
@@ -407,20 +444,20 @@ class _ProfileTab extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
-            Card(
+            const Card(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Studio Information',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16),
                     _InfoRow(
                       icon: Icons.location_on,
                       label: 'Location',
@@ -503,6 +540,213 @@ class _InfoRow extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// Booking Dialog for Creating New Bookings
+class _BookingDialog extends StatefulWidget {
+  final DateTime date;
+  final String timeSlot;
+  final SessionType sessionType;
+
+  const _BookingDialog({
+    required this.date,
+    required this.timeSlot,
+    required this.sessionType,
+  });
+
+  @override
+  State<_BookingDialog> createState() => _BookingDialogState();
+}
+
+class _BookingDialogState extends State<_BookingDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _artistNameController = TextEditingController();
+  final _notesController = TextEditingController();
+  final _amountController = TextEditingController(text: '3000');
+  final _advanceController = TextEditingController(text: '1000');
+  String _paymentMethod = 'bKash';
+
+  @override
+  void dispose() {
+    _artistNameController.dispose();
+    _notesController.dispose();
+    _amountController.dispose();
+    _advanceController.dispose();
+    super.dispose();
+  }
+
+  void _createBooking() {
+    if (_formKey.currentState!.validate()) {
+      final auth = context.read<AuthProvider>();
+      final bookingProvider = context.read<BookingProvider>();
+
+      if (auth.currentUser == null) return;
+
+      // Parse time slot (e.g., "9:00 AM - 12:00 PM")
+      final timeParts = widget.timeSlot.split(' - ');
+      final startTimeStr = timeParts[0];
+      final endTimeStr = timeParts[1];
+
+      // Create DateTime objects
+      final startTime = _parseTimeWithDate(widget.date, startTimeStr);
+      final endTime = _parseTimeWithDate(widget.date, endTimeStr);
+
+      final booking = BookingModel(
+        id: 'booking_${DateTime.now().millisecondsSinceEpoch}',
+        studioId: auth.currentUser!.id,
+        artistId:
+            'artist_${DateTime.now().millisecondsSinceEpoch}', // Temporary artist ID
+        sessionType: widget.sessionType,
+        startTime: startTime,
+        endTime: endTime,
+        totalAmount: double.parse(_amountController.text),
+        paidAmount: double.parse(_advanceController.text),
+        status: BookingStatus.confirmed,
+        notes: _notesController.text,
+        createdAt: DateTime.now(),
+        paymentMethod: _paymentMethod,
+        transactionId: 'TXN${DateTime.now().millisecondsSinceEpoch}',
+      );
+
+      bookingProvider.createBooking(booking);
+
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Booking created successfully!'),
+          backgroundColor: AppTheme.successColor,
+        ),
+      );
+    }
+  }
+
+  DateTime _parseTimeWithDate(DateTime date, String timeStr) {
+    // Parse time like "9:00 AM" or "2:00 PM"
+    final parts = timeStr.trim().split(' ');
+    final timeParts = parts[0].split(':');
+    int hour = int.parse(timeParts[0]);
+    final minute = int.parse(timeParts[1]);
+    final isPM = parts[1].toUpperCase() == 'PM';
+
+    if (isPM && hour != 12) hour += 12;
+    if (!isPM && hour == 12) hour = 0;
+
+    return DateTime(date.year, date.month, date.day, hour, minute);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(
+          'Book ${widget.sessionType == SessionType.recording ? 'Recording' : 'Jamming'} Session'),
+      content: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${DateFormat('MMMM dd, yyyy').format(widget.date)}  ${widget.timeSlot}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryColor,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _artistNameController,
+                decoration: const InputDecoration(
+                  labelText: 'Artist Name',
+                  prefixIcon: Icon(Icons.person),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter artist name';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _amountController,
+                decoration: const InputDecoration(
+                  labelText: 'Total Amount (BDT)',
+                  prefixIcon: Icon(Icons.money),
+                ),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter amount';
+                  }
+                  if (double.tryParse(value) == null) {
+                    return 'Please enter valid amount';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _advanceController,
+                decoration: const InputDecoration(
+                  labelText: 'Advance Payment (BDT)',
+                  prefixIcon: Icon(Icons.payment),
+                ),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter advance amount';
+                  }
+                  if (double.tryParse(value) == null) {
+                    return 'Please enter valid amount';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: _paymentMethod,
+                decoration: const InputDecoration(
+                  labelText: 'Payment Method',
+                  prefixIcon: Icon(Icons.account_balance_wallet),
+                ),
+                items: ['bKash', 'Nagad', 'Rocket', 'Bank Transfer', 'Cash']
+                    .map((method) => DropdownMenuItem(
+                          value: method,
+                          child: Text(method),
+                        ))
+                    .toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _paymentMethod = value!;
+                  });
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _notesController,
+                decoration: const InputDecoration(
+                  labelText: 'Notes (Optional)',
+                  prefixIcon: Icon(Icons.note),
+                ),
+                maxLines: 3,
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _createBooking,
+          child: const Text('Create Booking'),
+        ),
+      ],
     );
   }
 }

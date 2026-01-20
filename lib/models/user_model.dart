@@ -33,15 +33,22 @@ class UserModel extends Equatable {
       email: json['email'] as String,
       name: json['name'] as String,
       userType: UserType.values.firstWhere(
-        (e) => e.toString() == 'UserType.${json['userType']}',
+        (e) =>
+            e.toString() == 'UserType.${json['usertype'] ?? json['userType']}',
       ),
-      profileImage: json['profileImage'] as String?,
+      profileImage:
+          json['profileimage'] as String? ?? json['profileImage'] as String?,
       bio: json['bio'] as String?,
-      privateFolderCount: json['privateFolderCount'] as int? ?? 0,
-      privateFolderLimit: json['privateFolderLimit'] as int? ?? 10,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      lastLogin: json['lastLogin'] != null
-          ? DateTime.parse(json['lastLogin'] as String)
+      privateFolderCount: json['privatefoldercount'] as int? ??
+          json['privateFolderCount'] as int? ??
+          0,
+      privateFolderLimit: json['privatefolderlimit'] as int? ??
+          json['privateFolderLimit'] as int? ??
+          10,
+      createdAt: DateTime.parse(
+          json['createdat'] as String? ?? json['createdAt'] as String),
+      lastLogin: (json['lastlogin'] ?? json['lastLogin']) != null
+          ? DateTime.parse((json['lastlogin'] ?? json['lastLogin']) as String)
           : null,
     );
   }

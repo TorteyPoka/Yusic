@@ -38,12 +38,59 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
 
       if (success && mounted) {
-        Navigator.pushReplacementNamed(
-          context,
-          _selectedUserType == UserType.artist
-              ? '/artist-home'
-              : '/studio-home',
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Registration successful! Please login to continue.'),
+            backgroundColor: AppTheme.successColor,
+            duration: Duration(seconds: 3),
+          ),
         );
+
+        // Go back to login screen (pop register screen)
+        Navigator.pop(context);
+      } else if (mounted) {
+        Navigator.pushReplacementNamed(context, '/login');
+      } else if (mounted) {
+        // Extract clean error message
+        String errorMessage = authProvider.error ?? 'Registration failed';
+        if (errorMessage.startsWith('Exception: ')) {
+          errorMessage = errorMessage.substring('Exception: '.length);
+        }
+
+        // Check if it's an email confirmation message
+        bool isEmailConfirmation = errorMessage.contains('check your email') ||
+            errorMessage.contains('confirm your account');
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor:
+                isEmailConfirmation ? Colors.blue : AppTheme.errorColor,
+            duration: Duration(seconds: isEmailConfirmation ? 8 : 6),
+            behavior: SnackBarBehavior.floating,
+            action: (errorMessage.contains('wait') || isEmailConfirmation)
+                ? SnackBarAction(
+                    label: 'OK',
+                    textColor: Colors.white,
+                    onPressed: () {
+                      if (isEmailConfirmation) {
+                        // Navigate back to login
+                        Navigator.pop(context);
+                      }
+                    },
+                  )
+                : null,
+          ),
+        );
+
+        // If email confirmation is required, go back to login screen
+        if (isEmailConfirmation) {
+          await Future.delayed(const Duration(seconds: 2));
+          if (mounted) {
+            Navigator.pop(context);
+          }
+        }
       }
     }
   }
@@ -128,10 +175,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   decoration: const InputDecoration(
                     labelText: 'Email',
                     prefixIcon: Icon(Icons.email),
+                    hintText: 'your@email.com',
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Please enter your email';
+                    }
+                    // Comprehensive email validation
+                    final emailRegex = RegExp(
+                      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+                    );
+                    if (!emailRegex.hasMatch(value.trim())) {
+                      return 'Please enter a valid email address';
                     }
                     return null;
                   },

@@ -39,10 +39,25 @@ class _LoginScreenState extends State<LoginScreen> {
           userType == UserType.artist ? '/artist-home' : '/studio-home',
         );
       } else if (mounted) {
+        // Extract clean error message
+        String errorMessage = authProvider.error ?? 'Login failed';
+        if (errorMessage.startsWith('Exception: ')) {
+          errorMessage = errorMessage.substring('Exception: '.length);
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(authProvider.error ?? 'Login failed'),
+            content: Text(errorMessage),
             backgroundColor: AppTheme.errorColor,
+            duration: const Duration(seconds: 6),
+            behavior: SnackBarBehavior.floating,
+            action: errorMessage.contains('wait')
+                ? SnackBarAction(
+                    label: 'OK',
+                    textColor: Colors.white,
+                    onPressed: () {},
+                  )
+                : null,
           ),
         );
       }

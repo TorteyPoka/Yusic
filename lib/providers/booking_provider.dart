@@ -39,6 +39,13 @@ class BookingProvider extends ChangeNotifier {
   Future<void> updateBookingStatus(
       String bookingId, BookingStatus status) async {
     await _bookingService.updateBookingStatus(bookingId, status);
+
+    // Update local booking status
+    final index = _bookings.indexWhere((b) => b.id == bookingId);
+    if (index != -1) {
+      _bookings[index] = _bookings[index].copyWith(status: status);
+    }
+
     notifyListeners();
   }
 }
