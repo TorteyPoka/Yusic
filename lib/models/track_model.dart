@@ -25,29 +25,33 @@ class TrackModel extends Equatable {
 
   factory TrackModel.fromJson(Map<String, dynamic> json) {
     return TrackModel(
-      id: json['id'] as String,
-      folderId: json['folderId'] as String,
-      artistId: json['artistId'] as String,
-      title: json['title'] as String,
-      artist: json['artist'] as String?,
-      audioUrl: json['audioUrl'] as String,
-      coverImage: json['coverImage'] as String?,
-      duration: json['duration'] as int,
-      createdAt: DateTime.parse(json['createdAt'] as String),
+      id: json['id']?.toString() ?? '',
+      // Handle both snake_case (database) and camelCase (app)
+      folderId: (json['folder_id'] ?? json['folderId'] ?? '').toString(),
+      artistId: (json['artist_id'] ?? json['artistId'] ?? '').toString(),
+      title: (json['title'] ?? '').toString(),
+      artist: json['artist_name'] ?? json['artist'],
+      audioUrl: (json['audio_url'] ?? json['audioUrl'] ?? '').toString(),
+      coverImage: json['cover_image'] ?? json['coverImage'],
+      duration: (json['duration'] ?? 0) as int,
+      createdAt: DateTime.parse((json['created_at'] ??
+              json['createdAt'] ??
+              DateTime.now().toIso8601String())
+          .toString()),
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'folderId': folderId,
-      'artistId': artistId,
+      'folder_id': folderId,
+      'artist_id': artistId,
       'title': title,
-      'artist': artist,
-      'audioUrl': audioUrl,
-      'coverImage': coverImage,
+      'artist_name': artist,
+      'audio_url': audioUrl,
+      'cover_image': coverImage,
       'duration': duration,
-      'createdAt': createdAt.toIso8601String(),
+      'created_at': createdAt.toIso8601String(),
     };
   }
 

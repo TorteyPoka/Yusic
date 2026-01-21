@@ -57,18 +57,19 @@ class FolderService {
   ];
   Future<List<FolderModel>> getFoldersByArtist(String artistId) async {
     await Future.delayed(const Duration(milliseconds: 500));
-    
+
     // For demo purposes, return some folders with the current artistId
     // This ensures users always see demo folders
-    final userFolders = _mockFolders.where((f) => f.artistId == artistId).toList();
-    
+    final userFolders =
+        _mockFolders.where((f) => f.artistId == artistId).toList();
+
     // If user has no folders, create some demo folders for them
     if (userFolders.isEmpty && _mockFolders.isNotEmpty) {
       return _mockFolders.take(3).map((folder) {
         return folder.copyWith(artistId: artistId);
       }).toList();
     }
-    
+
     return userFolders;
   }
 

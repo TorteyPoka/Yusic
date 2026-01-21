@@ -1,216 +1,149 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../config/supabase_config.dart';
+import '../models/track_model.dart';
 
-/// Music Track Service for handling track uploads and management
-/// TODO: Replace mock implementation with actual backend
+/// Music Track Service for handling track uploads and management with Supabase
 class MusicTrackService {
-  // Mock track storage
-  static final List<Map<String, dynamic>> _mockTracks = [];
+  final SupabaseClient _supabase = SupabaseConfig.client;
 
-  /// Upload a music track with metadata (mock)
+  /// Upload a music track with metadata to Supabase Storage and Database
   Future<String> uploadTrack({
-    required File trackFile,
-    required String trackName,
-    required String userId,
+    required Uint8List fileBytes,
+    required String fileName,
+    required String title,
+    required String artistId,
+    String? artistName,
     String? folderId,
     String? genre,
-    String? artist,
     int? duration,
-    String? albumArt,
+    String? coverImage,
     Function(double)? onProgress,
   }) async {
     try {
-      // Simulate upload progress
-      if (onProgress != null) {
-        for (int i = 0; i <= 100; i += 10) {
-          await Future.delayed(const Duration(milliseconds: 100));
-          onProgress(i / 100);
-        }
-      }
+      // Generate storage path: audio-tracks/{artistId}/{fileName}
+      final storagePath =
+          '$artistId/${DateTime.now().millisecondsSinceEpoch}_$fileName';
 
-      // Generate unique track ID
-      final trackId = 'track_${DateTime.now().millisecondsSinceEpoch}';
+      // Upload to Supabase Storage
+      if (onProgress != null) onProgress(0.3);
 
-      // Mock track metadata
-      final trackData = {
-        'id': trackId,
-        'userId': userId,
-        'trackName': trackName,
-        'folderId': folderId,
-        'genre': genre ?? '',
-        'artist': artist ?? '',
+      await _supabase.storage.from('audio-tracks').uploadBinary(
+            storagePath,
+            fileBytes,
+            fileOptions: const FileOptions(
+              contentType: 'audio/mpeg',
+            ),
+          );
+
+      if (onProgress != null) onProgress(0.7);
+
+      // Get public URL
+      final String publicUrl =
+          _supabase.storage.from('audio-tracks').getPublicUrl(storagePath);
+
+      // Save track metadata to database
+      // Only include folder_id if it's a valid UUID format
+      final Map<String, dynamic> trackData = {
+        'artist_id': artistId,
+        'title': title,
+        'artist_name': artistName,
+        'audio_url': publicUrl,
+        'cover_image': coverImage,
         'duration': duration ?? 0,
-        'albumArt': albumArt ?? '',
-        'fileSize': await trackFile.length(),
+        'file_size': fileBytes.length,
+        'genre': genre,
         'plays': 0,
         'likes': 0,
-        'uploadedAt': DateTime.now().toIso8601String(),
       };
 
-      _mockTracks.add(trackData);
+      // Only add folder_id if it's a valid UUID (36 chars with dashes)
+      if (folderId != null && folderId.contains('-') && folderId.length == 36) {
+        trackData['folder_id'] = folderId;
+      }
 
-      return trackId;
+      final response =
+          await _supabase.from('tracks').insert(trackData).select().single();
+
+      if (onProgress != null) onProgress(1.0);
+
+      return response['id'] as String;
     } catch (e) {
       if (kDebugMode) {
         print('Error uploading track: $e');
       }
+
+      // Enhanced error messages
+      if (e.toString().contains('Bucket not found')) {
+        throw Exception(
+            'Storage bucket not found. Please create "audio-tracks" bucket in Supabase Dashboard:\n1. Go to Storage\n2. Create new bucket: audio-tracks\n3. Make it public\n4. Set file size limit to 50MB');
+      }
+
       throw Exception('Failed to upload track: $e');
     }
   }
 
-  /// Get all tracks for a user
-  Stream<List<Map<String, dynamic>>> getUserTracks(String userId) async* {
-    await Future.delayed(const Duration(milliseconds: 300));
-    yield _mockTracks.where((t) => t['userId'] == userId).toList();
+  /// Get all tracks by an artist
+  Future<List<TrackModel>> getArtistTracks(String artistId) async {
+    try {
+      final response = await _supabase
+          .from('tracks')
+          .select()
+          .eq('artist_id', artistId)
+          .order('created_at', ascending: false);
+
+      return (response as List)
+          .map((json) => TrackModel.fromJson(json))
+          .toList();
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error getting artist tracks: $e');
+      }
+      throw Exception('Failed to load tracks: $e');
+    }
   }
 
   /// Get tracks in a specific folder
-  Stream<List<Map<String, dynamic>>> getFolderTracks(
-    String userId,
-    String folderId,
-  ) async* {
-    await Future.delayed(const Duration(milliseconds: 300));
-    yield _mockTracks
-        .where((t) => t['userId'] == userId && t['folderId'] == folderId)
-        .toList();
+  Future<List<TrackModel>> getFolderTracks(String folderId) async {
+    try {
+      final response = await _supabase
+          .from('tracks')
+          .select()
+          .eq('folder_id', folderId)
+          .order('created_at', ascending: false);
+
+      return (response as List)
+          .map((json) => TrackModel.fromJson(json))
+          .toList();
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error getting folder tracks: $e');
+      }
+      throw Exception('Failed to load folder tracks: $e');
+    }
   }
 
   /// Delete a track
-  Future<void> deleteTrack({
-    required String trackDocId,
-    required String trackStoragePath,
-  }) async {
+  Future<void> deleteTrack(String trackId) async {
     try {
-      await Future.delayed(const Duration(milliseconds: 300));
-      _mockTracks.removeWhere((t) => t['id'] == trackDocId);
+      // Get track info first to delete from storage
+      final track =
+          await _supabase.from('tracks').select().eq('id', trackId).single();
+
+      // Delete from storage
+      final audioUrl = track['audio_url'] as String;
+      final storagePath = audioUrl.split('/audio-tracks/').last;
+
+      await _supabase.storage.from('audio-tracks').remove([storagePath]);
+
+      // Delete from database
+      await _supabase.from('tracks').delete().eq('id', trackId);
     } catch (e) {
       if (kDebugMode) {
         print('Error deleting track: $e');
       }
       throw Exception('Failed to delete track: $e');
-    }
-  }
-
-  /// Update track metadata
-  Future<void> updateTrackMetadata({
-    required String trackDocId,
-    String? trackName,
-    String? genre,
-    String? artist,
-    String? albumArt,
-  }) async {
-    try {
-      await Future.delayed(const Duration(milliseconds: 300));
-
-      final index = _mockTracks.indexWhere((t) => t['id'] == trackDocId);
-      if (index != -1) {
-        if (trackName != null) _mockTracks[index]['trackName'] = trackName;
-        if (genre != null) _mockTracks[index]['genre'] = genre;
-        if (artist != null) _mockTracks[index]['artist'] = artist;
-        if (albumArt != null) _mockTracks[index]['albumArt'] = albumArt;
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error updating track metadata: $e');
-      }
-      throw Exception('Failed to update track: $e');
-    }
-  }
-
-  /// Increment play count
-  Future<void> incrementPlayCount(String trackDocId) async {
-    try {
-      await Future.delayed(const Duration(milliseconds: 100));
-
-      final index = _mockTracks.indexWhere((t) => t['id'] == trackDocId);
-      if (index != -1) {
-        _mockTracks[index]['plays'] = (_mockTracks[index]['plays'] ?? 0) + 1;
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error incrementing play count: $e');
-      }
-    }
-  }
-
-  /// Toggle like
-  Future<void> toggleLike(String trackDocId) async {
-    try {
-      await Future.delayed(const Duration(milliseconds: 100));
-
-      final index = _mockTracks.indexWhere((t) => t['id'] == trackDocId);
-      if (index != -1) {
-        _mockTracks[index]['likes'] = (_mockTracks[index]['likes'] ?? 0) + 1;
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error toggling like: $e');
-      }
-    }
-  }
-
-  /// Search tracks by name
-  Future<List<Map<String, dynamic>>> searchTracks(
-    String userId,
-    String query,
-  ) async {
-    try {
-      await Future.delayed(const Duration(milliseconds: 300));
-
-      return _mockTracks
-          .where((t) =>
-              t['userId'] == userId &&
-              (t['trackName']
-                      ?.toString()
-                      .toLowerCase()
-                      .contains(query.toLowerCase()) ??
-                  false))
-          .toList();
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error searching tracks: $e');
-      }
-      return [];
-    }
-  }
-
-  /// Get track statistics
-  Future<Map<String, dynamic>> getTrackStats(String userId) async {
-    try {
-      await Future.delayed(const Duration(milliseconds: 300));
-
-      final userTracks =
-          _mockTracks.where((t) => t['userId'] == userId).toList();
-
-      int totalTracks = userTracks.length;
-      int totalPlays = 0;
-      int totalLikes = 0;
-      int totalSize = 0;
-
-      for (var track in userTracks) {
-        totalPlays += (track['plays'] ?? 0) as int;
-        totalLikes += (track['likes'] ?? 0) as int;
-        totalSize += (track['fileSize'] ?? 0) as int;
-      }
-
-      return {
-        'totalTracks': totalTracks,
-        'totalPlays': totalPlays,
-        'totalLikes': totalLikes,
-        'totalSize': totalSize,
-        'averageSize': totalTracks > 0 ? totalSize ~/ totalTracks : 0,
-      };
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error getting track stats: $e');
-      }
-      return {
-        'totalTracks': 0,
-        'totalPlays': 0,
-        'totalLikes': 0,
-        'totalSize': 0,
-        'averageSize': 0,
-      };
     }
   }
 }
